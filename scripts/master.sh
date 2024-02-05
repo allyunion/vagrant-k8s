@@ -51,3 +51,5 @@ EOF
 
 kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/main/manifests/metrics-server.yaml
 
+# Create a persistent k8s NFS volume
+mkdir -p /srv/k8s-nfs

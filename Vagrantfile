@@ -2,6 +2,7 @@
 require "yaml"
 settings = YAML.load_file "settings.yaml"
 
+
 IP_SECTIONS = settings["network"]["control_ip"].match(/^([0-9.]+\.)([^.]+)$/)
 # First 3 octets including the trailing dot:
 IP_NW = IP_SECTIONS.captures[0]
@@ -10,6 +11,7 @@ IP_START = Integer(IP_SECTIONS.captures[1])
 NUM_WORKER_NODES = settings["nodes"]["workers"]["count"]
 
 Vagrant.configure("2") do |config|
+  config.ssh.private_key_path="~/.ssh/id_rsa"
   config.vm.provision "shell", env: { "IP_NW" => IP_NW, "IP_START" => IP_START, "NUM_WORKER_NODES" => NUM_WORKER_NODES }, inline: <<-SHELL
       apt-get update -y
       echo "$IP_NW$((IP_START)) master-node" >> /etc/hosts
@@ -17,6 +19,14 @@ Vagrant.configure("2") do |config|
         echo "$IP_NW$((IP_START+i)) worker-node0${i}" >> /etc/hosts
       done
   SHELL
+
+  config.vm.provision "shell" do |s|
+    ssh_pub_key = File.readlines("#{Dir.home}/.ssh/id_rsa.pub").first.strip
+    s.inline = <<-SHELL
+      echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+      echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
+    SHELL
+  end
 
   if `uname -m`.strip == "aarch64"
     config.vm.box = settings["software"]["box"] + "-arm64"
