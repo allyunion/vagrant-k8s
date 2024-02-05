@@ -51,5 +51,11 @@ EOF
 
 kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/main/manifests/metrics-server.yaml
 
+# NFS setup on k8s
+kubectl create ns storage
+
 # Create a persistent k8s NFS volume
 mkdir -p /srv/k8s-nfs
+
+kubectl apply -f https://raw.githubusercontent.com/allyunion/vagrant-k8s/main/nfs/pv-nfs-master.yaml
+kubectl apply -f https://raw.githubusercontent.com/allyunion/vagrant-k8s/main/nfs/pvc-nfs-master.yaml
