@@ -1,4 +1,3 @@
-
 require "yaml"
 settings = YAML.load_file "settings.yaml"
 
@@ -10,10 +9,25 @@ IP_NW = IP_SECTIONS.captures[0]
 IP_START = Integer(IP_SECTIONS.captures[1])
 NUM_WORKER_NODES = settings["nodes"]["workers"]["count"]
 
+#system("mkdir -p .ssh 2>/dev/null || exit 0")
+
 Vagrant.configure("2") do |config|
-  config.ssh.private_key_path="~/.ssh/id_rsa"
+  config.ssh.insert_key = true
+  #config.ssh.private_key_path = __dir__ + "/.ssh"
+
+  #if /cygwin/i =~ `uname -s`
+  #  puts "String includes CYGWIN"
+  #  config.ssh.private_key_path = `cygpath __dir__ + "/.ssh"`
+  #else
+  #  puts "String does not include CYGWIN"
+  #end
+
+  config.vm.boot_timeout = 1200
+  config.vm.disk :disk, size: '80GB', primary: true
+  config.vm.disk :disk, size: '64GB', name: "swap_space"
   config.vm.provision "shell", env: { "IP_NW" => IP_NW, "IP_START" => IP_START, "NUM_WORKER_NODES" => NUM_WORKER_NODES }, inline: <<-SHELL
       apt-get update -y
+      apt-get install ssh net-tools -y
       echo "$IP_NW$((IP_START)) master-node" >> /etc/hosts
       for i in `seq 1 ${NUM_WORKER_NODES}`; do
         echo "$IP_NW$((IP_START+i)) worker-node0${i}" >> /etc/hosts
@@ -36,6 +50,7 @@ Vagrant.configure("2") do |config|
   config.vm.box_check_update = true
 
   config.vm.define "master" do |master|
+    master.vm.boot_timeout = 1500
     master.vm.hostname = "master-node"
     master.vm.network "private_network", ip: settings["network"]["control_ip"]
     if settings["shared_folders"]
@@ -58,6 +73,7 @@ Vagrant.configure("2") do |config|
         "OS" => settings["software"]["os"]
       },
       path: "scripts/common.sh"
+    master.vm.provision "file", source: "cluster-config/kube/kubeconfig_template.yaml", destination: "/tmp/kubeconfig_template.yaml"
     master.vm.provision "shell",
       env: {
         "CALICO_VERSION" => settings["software"]["calico"],
@@ -66,11 +82,34 @@ Vagrant.configure("2") do |config|
         "SERVICE_CIDR" => settings["network"]["service_cidr"]
       },
       path: "scripts/master.sh"
+    master.vm.provision "shell",
+      path: "cluster-scripts/install_helm.sh"
+    master.vm.provision "file", source: "cluster-config/rook/rook_ceph_operator_values.yaml", destination: "/tmp/rook_ceph_operator_values.yaml"
+    master.vm.provision "file", source: "cluster-config/rook/rook_ceph_cluster_values.yaml", destination: "/tmp/rook_ceph_cluster_values.yaml"
+#    master.vm.provision "file", source: "cluster-config/rook/rook_storage.yaml", destination: "rook_storage.yaml"
+#    master.vm.provision "file", source: "cluster-config/rook/rook_crds.yaml", destination: "rook_crds.yaml"
+#    master.vm.provision "file", source: "cluster-config/rook/rook_common.yaml", destination: "rook_common.yaml"
+#    master.vm.provision "file", source: "cluster-config/rook/rook_operator.yaml", destination: "rook_operator.yaml"
+    master.vm.provision "file", source: "cluster-config/rook/rook_nfs.yaml", destination: "rook_nfs.yaml"
+    master.vm.provision "shell", inline: <<-SHELL
+      helm repo add rook-release https://charts.rook.io/release
+      helm repo update
+      mkdir -p /srv/rook
+      helm install --create-namespace --namespace rook-ceph rook-ceph rook-release/rook-ceph -f /tmp/rook_ceph_operator_values.yaml
+      helm install --create-namespace --namespace rook-ceph rook-ceph-cluster --set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster -f /tmp/rook_ceph_cluster_values.yaml
+  SHELL
+
+#      helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#      helm repo add grafana https://grafana.github.io/helm-charts
+#      helm install prometheus prometheus-community/prometheus
+#      helm install grafana grafana/grafana
+      
   end
 
   (1..NUM_WORKER_NODES).each do |i|
 
     config.vm.define "node0#{i}" do |node|
+      node.vm.boot_timeout = 1200
       node.vm.hostname = "worker-node0#{i}"
       node.vm.network "private_network", ip: IP_NW + "#{IP_START + i}"
       if settings["shared_folders"]
@@ -94,6 +133,9 @@ Vagrant.configure("2") do |config|
         },
         path: "scripts/common.sh"
       node.vm.provision "shell", path: "scripts/node.sh"
+      node.vm.provision "shell", inline: <<-SHELL
+        mkdir -p /srv/rook
+      SHELL
 
       # Only install the dashboard after provisioning the last worker (and when enabled).
       if i == NUM_WORKER_NODES and settings["software"]["dashboard"] and settings["software"]["dashboard"] != ""

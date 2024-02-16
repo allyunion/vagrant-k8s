@@ -10,7 +10,13 @@ sudo kubeadm config images pull
 
 echo "Preflight Check Passed: Downloaded All Required Images"
 
-sudo kubeadm init --apiserver-advertise-address=$CONTROL_IP --apiserver-cert-extra-sans=$CONTROL_IP --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR --node-name "$NODENAME" --ignore-preflight-errors Swap
+#sudo kubeadm init --apiserver-advertise-address=$CONTROL_IP --apiserver-cert-extra-sans=$CONTROL_IP --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR --node-name "$NODENAME" --ignore-preflight-errors Swap
+export CONTROL_IP
+export POD_CIDR
+export SERVICE_CIDR
+export NODENAME
+sudo /usr/bin/envsubst < /tmp/kubeconfig_template.yaml > /tmp/kubeconfig.yaml
+sudo kubeadm init --config /tmp/kubeconfig.yaml --ignore-preflight-errors Swap
 
 mkdir -p "$HOME"/.kube
 sudo cp -i /etc/kubernetes/admin.conf "$HOME"/.kube/config
@@ -50,12 +56,3 @@ EOF
 # Install Metrics Server
 
 kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/main/manifests/metrics-server.yaml
-
-# NFS setup on k8s
-kubectl create ns storage
-
-# Create a persistent k8s NFS volume
-mkdir -p /srv/k8s-nfs
-
-kubectl apply -f https://raw.githubusercontent.com/allyunion/vagrant-k8s/main/nfs/pv-nfs-master.yaml
-kubectl apply -f https://raw.githubusercontent.com/allyunion/vagrant-k8s/main/nfs/pvc-nfs-master.yaml
