@@ -85,19 +85,8 @@ Vagrant.configure("2") do |config|
       path: "scripts/master.sh"
     master.vm.provision "shell",
       path: "cluster-scripts/install_helm.sh"
-    master.vm.provision "file", source: "cluster-config/rook/rook_ceph_operator_values.yaml", destination: "/tmp/rook_ceph_operator_values.yaml"
-    master.vm.provision "file", source: "cluster-config/rook/rook_ceph_cluster_values.yaml", destination: "/tmp/rook_ceph_cluster_values.yaml"
-#    master.vm.provision "file", source: "cluster-config/rook/rook_storage.yaml", destination: "rook_storage.yaml"
-#    master.vm.provision "file", source: "cluster-config/rook/rook_crds.yaml", destination: "rook_crds.yaml"
-#    master.vm.provision "file", source: "cluster-config/rook/rook_common.yaml", destination: "rook_common.yaml"
-#    master.vm.provision "file", source: "cluster-config/rook/rook_operator.yaml", destination: "rook_operator.yaml"
-    master.vm.provision "file", source: "cluster-config/rook/rook_nfs.yaml", destination: "rook_nfs.yaml"
     master.vm.provision "shell", inline: <<-SHELL
-      helm repo add rook-release https://charts.rook.io/release
       helm repo update
-      mkdir -p /srv/rook
-      helm install --create-namespace --namespace rook-ceph rook-ceph rook-release/rook-ceph -f /tmp/rook_ceph_operator_values.yaml
-      helm install --create-namespace --namespace rook-ceph rook-ceph-cluster --set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster -f /tmp/rook_ceph_cluster_values.yaml
   SHELL
 
 #      helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -134,9 +123,6 @@ Vagrant.configure("2") do |config|
         },
         path: "scripts/common.sh"
       node.vm.provision "shell", path: "scripts/node.sh"
-      node.vm.provision "shell", inline: <<-SHELL
-        mkdir -p /srv/rook
-      SHELL
 
       # Only install the dashboard after provisioning the last worker (and when enabled).
       if i == NUM_WORKER_NODES and settings["software"]["dashboard"] and settings["software"]["dashboard"] != ""

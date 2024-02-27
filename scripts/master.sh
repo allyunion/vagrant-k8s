@@ -16,11 +16,6 @@ export POD_CIDR=$POD_CIDR
 export SERVICE_CIDR=$SERVICE_CIDR
 sudo -E /usr/bin/envsubst < /tmp/kubeconfig_template.yaml > /tmp/kubeconfig.yaml
 
-#echo "Kubernetes Configuration File:"
-#echo "----------------------------------------------------------------"
-#cat /tmp/kubeconfig.yaml
-#echo "----------------------------------------------------------------"
-
 sudo kubeadm init --config /tmp/kubeconfig.yaml --ignore-preflight-errors Swap
 
 mkdir -p "$HOME"/.kube
