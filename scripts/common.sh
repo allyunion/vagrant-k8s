@@ -17,14 +17,14 @@ EOF
 
 sudo systemctl restart systemd-resolved
 
+# original was to disable swap completely, attempting to use swap for k8s 1.28
 # disable swap
 sudo swapoff -a
 #sudo sed -e '/\/swap.img/ s/^#*/#/' -i /etc/fstab
-#sudo sed 's/\/swap.img/\/dev\/sdb/' -i /etc/fstab
-#sudo mkswap /dev/sdb
-#sudo swapon -a
-#sudo rm -f /swap.img
-# original was to disable swap completely, attempting to use swap for k8s 1.28
+sudo sed 's/\/swap.img/\/dev\/sdb/' -i /etc/fstab
+sudo mkswap /dev/sdb
+sudo swapon -a
+sudo rm -f /swap.img
 #sudo dd if=/dev/zero of=/swap.img bs=1024 count=16M
 #sudo mkswap /swap.img
 #sudo swapon

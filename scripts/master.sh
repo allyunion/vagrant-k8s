@@ -4,18 +4,23 @@
 
 set -euxo pipefail
 
-NODENAME=$(hostname -s)
+export NODENAME=$(hostname -s)
 
 sudo kubeadm config images pull
 
 echo "Preflight Check Passed: Downloaded All Required Images"
 
 #sudo kubeadm init --apiserver-advertise-address=$CONTROL_IP --apiserver-cert-extra-sans=$CONTROL_IP --pod-network-cidr=$POD_CIDR --service-cidr=$SERVICE_CIDR --node-name "$NODENAME" --ignore-preflight-errors Swap
-export CONTROL_IP
-export POD_CIDR
-export SERVICE_CIDR
-export NODENAME
-sudo /usr/bin/envsubst < /tmp/kubeconfig_template.yaml > /tmp/kubeconfig.yaml
+export CONTROL_IP=$CONTROL_IP
+export POD_CIDR=$POD_CIDR
+export SERVICE_CIDR=$SERVICE_CIDR
+sudo -E /usr/bin/envsubst < /tmp/kubeconfig_template.yaml > /tmp/kubeconfig.yaml
+
+#echo "Kubernetes Configuration File:"
+#echo "----------------------------------------------------------------"
+#cat /tmp/kubeconfig.yaml
+#echo "----------------------------------------------------------------"
+
 sudo kubeadm init --config /tmp/kubeconfig.yaml --ignore-preflight-errors Swap
 
 mkdir -p "$HOME"/.kube
