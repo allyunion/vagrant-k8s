@@ -86,8 +86,9 @@ Vagrant.configure("2") do |config|
     master.vm.provision "shell",
       path: "cluster-scripts/install_helm.sh"
     master.vm.provision "shell", inline: <<-SHELL
+      helm repo add longhorn https://charts.longhorn.io
       helm repo update
-  SHELL
+    SHELL
 
 #      helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 #      helm repo add grafana https://grafana.github.io/helm-charts

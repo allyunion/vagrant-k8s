@@ -15,6 +15,18 @@ cat <<EOF | sudo tee /etc/systemd/resolved.conf.d/dns_servers.conf
 DNS=${DNS_SERVERS}
 EOF
 
+# Multipath setting for Longhorn
+sudo cat >> /etc/multipath.conf <<EOF
+blacklist {
+    devnode "^sd[a-z0-9]+"
+}
+EOF
+#sudo systemctl restart multipathd.service
+sudo systemctl stop multipathd multipathd.socket
+sudo systemctl disable multipathd multipathd.socket
+
+# Continue on common.sh
+
 sudo systemctl restart systemd-resolved
 
 # original was to disable swap completely, attempting to use swap for k8s 1.28
@@ -77,16 +89,26 @@ echo "CRI runtime installed successfully"
 
 sudo apt-get update
 sudo apt-get install -y apt-transport-https ca-certificates curl
-curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
+#curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --yes --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v${VERSION}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:v${VERSION}/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
 
 sudo apt-get update -y
 sudo apt-get install -y kubelet="$KUBERNETES_VERSION" kubectl="$KUBERNETES_VERSION" kubeadm="$KUBERNETES_VERSION"
 sudo apt-get update -y
 sudo apt-get install -y jq
+sudo apt-get install -y ssh net-tools
+# Requirements for longhorn
+sudo apt-get install -y open-iscsi nfs-common
 
 local_ip="$(ip --json a s | jq -r '.[] | if .ifname == "eth1" then .addr_info[] | if .family == "inet" then .local else empty end else empty end')"
 cat > /etc/default/kubelet << EOF
 KUBELET_EXTRA_ARGS=--node-ip=$local_ip
 ${ENVIRONMENT}
+EOF
+
+cat >> /etc/bash.bashrc << EOF
+# Add additional bashrc
+
+alias k=kubectl
 EOF

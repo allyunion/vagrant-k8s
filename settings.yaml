@@ -36,3 +36,4 @@ software:
   dashboard: 2.7.0
   kubernetes: 1.28.2-00
   os: xUbuntu_22.04
+  longhorn: 1.6.0

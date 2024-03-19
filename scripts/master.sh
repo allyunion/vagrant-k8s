@@ -44,7 +44,15 @@ kubeadm token create --print-join-command > $config_path/join.sh
 
 curl https://raw.githubusercontent.com/projectcalico/calico/v${CALICO_VERSION}/manifests/calico.yaml -O
 
+export CALICO_CLUSTER_CIDR=$(echo $SERVICE_CIDR | sed 's/\//\\\//g')
+#export CALICO_CLUSTER_CIDR=$(echo $POD_CIDR | sed 's/\//\\\//g')
+
+sed 's/# - name: CALICO_IPV4POOL_CIDR/- name: CALICO_IPV4_POOL_CIDR/' -i calico.yaml
+sed 's/#   value: "192.168.0.0\/16"/  value: '"${CALICO_CLUSTER_CIDR}"'/' -i calico.yaml
+
 kubectl apply -f calico.yaml
+
+#curl -L https://github.com/projectcalico/calico/releases/download/v${CALICO_VERSION}/calicoctl-linux-amd64 -o /usr/local/sbin/calicoctl
 
 sudo -i -u vagrant bash << EOF
 whoami
@@ -56,3 +64,4 @@ EOF
 # Install Metrics Server
 
 kubectl apply -f https://raw.githubusercontent.com/techiescamp/kubeadm-scripts/main/manifests/metrics-server.yaml
+
